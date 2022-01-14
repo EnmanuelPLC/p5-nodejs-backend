@@ -28,14 +28,10 @@ srv.post('/login', (req, res, _next) => {
         if (usr.username === query.username) {
             if (usr.password === query.password) {
                 res.json({ login: true, type: usr.type });
-                return;
-            } else {
-                res.json({ login: false });
             }
-        } else {
-            res.json({ login: false });
         }
     });
+    res.json({ login: false });
 });
 
 srv.post('/createUser', (req, res, _next) => {
@@ -61,7 +57,7 @@ srv.post('/createUser', (req, res, _next) => {
     } else res.json({ createUser: false });
 });
 
-srv.post('/delUser', (req, res, next) => {
+srv.post('/delUser', (req, res, _next) => {
     let users = getDbUsers();
     let dat = req.body;
     let val = false;
