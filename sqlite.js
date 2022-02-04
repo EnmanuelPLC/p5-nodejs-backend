@@ -4,7 +4,7 @@ class SQLite {
 	constructor() {}
 
 	_init () {
-		this.db = new sqlite('database.db');
+		this.db = new sqlite('database.sqlite', {verbose: console.log});
 	}
 	
 	_stop() {
@@ -32,7 +32,7 @@ class SQLite {
 	}
 
 	update(params) {
-		let query = this.db.prepare(`UPDATE ${params.table} SET '${params.field}' = '${params.value}' WHERE orderId = ${params.id} ;`);
+		let query = this.db.prepare(`UPDATE ${params.table} SET ${params.field} = ${params.value} WHERE ${params.cond};`);
 		query.run();
 	}
 
