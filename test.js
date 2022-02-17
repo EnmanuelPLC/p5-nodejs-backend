@@ -1,12 +1,9 @@
-let arr = [1, 2, 3, 4, 5];
-let obj = {};
+let pass = type = year = group = groupCharge = feuCharge = false;
 
-arr.forEach((val, i) => {
-  obj[val] = val;
-});
+console.log(new Date(Date.now()).toLocaleString());
 
-console.log(obj);
-
-Object.keys(obj).map((year, i) => {
-  console.log(year);
-});
+`aaaaaaaaaaaaaaaaaaaaaaaa
+bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+ccccccccccccccccccccccccc
+dddddddddddddddddddddddddddddddddd
+eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee`

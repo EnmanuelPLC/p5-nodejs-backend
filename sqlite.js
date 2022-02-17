@@ -4,7 +4,7 @@ class SQLite {
 	constructor() {}
 
 	_init () {
-		this.db = new sqlite('database.sqlite', {verbose: console.log});
+		this.db = new sqlite('database.sqlite', /* {verbose: console.log} */);
 	}
 	
 	_stop() {
