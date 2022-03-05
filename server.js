@@ -63,11 +63,8 @@ srv.get('/getUser', (req, res, next) => {
 });
 
 srv.post('/createUser', async (req, res, next) => {
-  let dat = req.body, val = true, user = getDbUser(dat.username);
-  if (user.length > 0) {
-    val = false;
-  }
-  if (val) {
+  let dat = req.body, user = getDbUser(dat.username);
+  if (user?.length > 0) {
     let hashpass = await bcrypt.hash(dat.password, 10);
     if (dat.userType === 'student') {
       db.query({
@@ -385,12 +382,97 @@ srv.get('/getMeetingAct', (req, res) => {
   }, 500);
 });
 
+srv.post('/createMeetingAct', async (req, res, next) => {
+  let dat = req.body;
+  db.query({
+    type: "insert",
+    obj: {
+      table: "meetingAct",
+      fields: `'username', 'group', 'year', 'description', 'date', 'modifyDate'`,
+      values: `'${dat.user}', '${dat.group}', '${dat.year}', '${dat.information}', '${dat.date}', '${dat.date}'`,
+    }
+  });
+  res.json({ create: true, msg: 'Acta de integralidad creada' });
+  next();
+});
+
+srv.put('/editMeetingAct', async (req, res, next) => {
+  let dat = req.body;
+  db.query({
+    type: "update",
+    obj: {
+      table: "meetingAct",
+      field: `"description"`,
+      value: `'${dat.information}'`,
+      cond: `"username" = '${dat.user}'`,
+    },
+  });
+  db.query({
+    type: "update",
+    obj: {
+      table: "meetingAct",
+      field: `"modifyDate"`,
+      value: `'${dat.date}'`,
+      cond: `"username" = '${dat.user}'`,
+    },
+  });
+  res.json({ edited: true, msg: 'Acta de integralidad editada' });
+  next();
+});
+
 // Gestionar Plan de Actividades
 srv.get('/getActivityPlan', (req, res) => {
   let activityPlan = getDbActivityPlan(req.query.user);
   setTimeout(() => {
     res.json(activityPlan);
   }, 500);
+});
+
+srv.post('/createActivityPlan', async (req, res, next) => {
+  let dat = req.body;
+  db.query({
+    type: "insert",
+    obj: {
+      table: "activityPlan",
+      fields: `'name','username', 'group', 'year', 'description', 'date', 'modifyDate'`,
+      values: `'${dat.name}', '${dat.user}', '${dat.group}', '${dat.year}', '${dat.information}', '${dat.date}', '${dat.date}'`,
+    }
+  });
+  res.json({ create: true, msg: 'Acta de integralidad creada' });
+  next();
+});
+
+srv.put('/editActivityPlan', async (req, res, next) => {
+  let dat = req.body;
+  db.query({
+    type: "update",
+    obj: {
+      table: "activityPlan",
+      field: `"description"`,
+      value: `'${dat.information}'`,
+      cond: `"username" = '${dat.user}'`,
+    },
+  });
+  db.query({
+    type: "update",
+    obj: {
+      table: "activityPlan",
+      field: `"name"`,
+      value: `'${dat.name}'`,
+      cond: `"username" = '${dat.user}'`,
+    },
+  });
+  db.query({
+    type: "update",
+    obj: {
+      table: "activityPlan",
+      field: `"modifyDate"`,
+      value: `'${dat.date}'`,
+      cond: `"username" = '${dat.user}'`,
+    },
+  });
+  res.json({ edited: true, msg: 'Acta de integralidad editada' });
+  next();
 });
 
 // Autenticacion
