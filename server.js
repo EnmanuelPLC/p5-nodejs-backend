@@ -19,7 +19,7 @@ function secureMiddleware(req, res, next) {
     console.log('Access to api from unknown source');
     res.send('<h1>Access Forbidden</h1>');
   } else {
-    console.log(`Api call detected from ${req.headers.origin}, Method -> ${req.method}, Path -> ${req.path}`);
+    console.log(`Api call detected from Authorized origin, Method -> ${req.method}, Path -> ${req.path}`);
     next();
   }
 }
@@ -52,10 +52,14 @@ srv.get('/adminInfo', (req, res, next) => {
 });
 
 srv.get('/getUser', (req, res, next) => {
-  let user = getDbUser(req.query.user), isGroupLeader = getDbUserIsGroupleader(user[0].year, user[0].group);
+  let user = getDbUser(req.query.user), isGroupLeader = getDbUserIsGroupleader(user[0].year, user[0].group),
+    isViceGroupLeader = getDbUserIsViceGroupleader(user[0].year, user[0].group);
   if (isGroupLeader[0].groupLeader === user[0].username) isGroupLeader = true;
   else isGroupLeader = false;
+  if (isViceGroupLeader[0].viceGroupLeader === user[0].username) isViceGroupLeader = true;
+  else isViceGroupLeader = false;
   user[0]['isGroupLeader'] = isGroupLeader;
+  user[0]['isViceGroupLeader'] = isViceGroupLeader;
   setTimeout(() => {
     res.json(user);
     next();
@@ -63,10 +67,10 @@ srv.get('/getUser', (req, res, next) => {
 });
 
 srv.post('/createUser', async (req, res, next) => {
-  let dat = req.body, user = getDbUser(dat.username);
-  if (user?.length > 0) {
-    let hashpass = await bcrypt.hash(dat.password, 10);
-    if (dat.userType === 'student') {
+  let dat = req.body, user = getDbUser(dat.username); // 1
+  if (user?.length === 0) { // 2
+    let hashpass = await bcrypt.hash(dat.password, 10); // 3
+    if (dat.userType === 'student') { // 3
       db.query({
         type: "insert",
         obj: {
@@ -75,7 +79,7 @@ srv.post('/createUser', async (req, res, next) => {
           values: `'${dat.username}', '${dat.userFullName}', '${hashpass}', '${dat.studentYear}', '${dat.studentGroup}', '${dat.userType}', '${dat.studentCharge}', '${dat.studentFeuCharge}'`,
         }
       });
-      if (dat.studentCharge !== 'none') {
+      if (dat.studentCharge !== 'none') { // 4
         let field = '', charge = dat.studentCharge;
         charge === 'Presidente' ? field = 'groupLeader' : charge === 'Vicepresidente' ? field = 'viceGroupLeader' : field = 'groupSecretary';
         db.query({
@@ -88,7 +92,7 @@ srv.post('/createUser', async (req, res, next) => {
           }
         });
       }
-    } else if (dat.userType === 'teacher') {
+    } else if (dat.userType === 'teacher') { // 5
       db.query({
         type: "insert",
         obj: {
@@ -97,7 +101,7 @@ srv.post('/createUser', async (req, res, next) => {
           values: `'${dat.username}', '${dat.userFullName}', '${hashpass}', '${dat.teacherYear}', '${dat.teacherGroup}', '${dat.userType}'`,
         }
       });
-      if (dat.teacherGroupGuide !== 'none') {
+      if (dat.teacherGroupGuide !== 'none') { // 6
         db.query({
           type: "update",
           obj: {
@@ -108,7 +112,7 @@ srv.post('/createUser', async (req, res, next) => {
           }
         });
       }
-      if (dat.teacherPrincipalYear !== 'none') {
+      if (dat.teacherPrincipalYear !== 'none') { // 7
         db.query({
           type: "update",
           obj: {
@@ -120,8 +124,8 @@ srv.post('/createUser', async (req, res, next) => {
         });
       }
     }
-    res.json({ createUser: true, msg: 'Usuario creado' });
-  } else res.json({ createUser: false, msg: 'El usuario ya existe en el sistema' });
+    res.json({ createUser: true, msg: 'Usuario creado' }); // 8
+  } else res.json({ createUser: false, msg: 'El usuario ya existe en el sistema' }); // 9
   next();
 });
 
@@ -362,23 +366,29 @@ srv.put('/editIntegralityAct', async (req, res, next) => {
 
 srv.post('/delIntegralityAct', async (req, res, next) => {
   let dat = req.body;
-  db.query({
-    type: "insert",
-    obj: {
-      table: "integralityAct",
-      fields: `'username', 'group', 'year', 'information', 'status', 'date', 'modifyDate'`,
-      values: `'${dat.user}', '${dat.group}', '${dat.year}', '${dat.information}', 'Creada y enviada para revision', '${dat.date}', '${dat.date}'`,
-    }
-  });
-  res.json({ create: true, msg: 'Acta de integralidad creada' });
+  let integrality = getDbIntegrality(dat.user);
+  if (integrality.length > 0) {
+    db.query({
+      type: "delete",
+      obj: {
+        table: "integralityAct",
+        field: `"username"`,
+        value: `${dat.user}`,
+      }
+    });
+    res.json({ deleted: true, msg: 'Acta de integralidad eliminada' });
+  } else {
+    res.json({ deleted: false, msg: 'El acta de integralidad NO existe en el sistema' });
+  }
   next();
 });
 
 // Gestionar Actas de Reunion
-srv.get('/getMeetingAct', (req, res) => {
+srv.get('/getMeetingAct', (req, res, next) => {
   let meetingAct = getDbMeeting(req.query.user);
   setTimeout(() => {
     res.json(meetingAct);
+    next();
   }, 500);
 });
 
@@ -420,11 +430,29 @@ srv.put('/editMeetingAct', async (req, res, next) => {
   next();
 });
 
+srv.post('/delMeetingAct', (req, res, next) => {
+  let dat = req.body;
+  let meetingAct = getDbMeeting(dat.user);
+  if (meetingAct.length > 0) {
+    db.query({
+      type: "delete",
+      obj: {
+        table: "meetingAct",
+        field: "username",
+        value: `${dat.user}`,
+      },
+    });
+    res.json({ deleted: true, msg: 'Acta de reunion eliminada correctamente' });
+  } else res.json({ deleted: false, msg: 'El acta de reunion NO existe en el sistema' });
+  next();
+});
+
 // Gestionar Plan de Actividades
-srv.get('/getActivityPlan', (req, res) => {
+srv.get('/getActivityPlan', (req, res, next) => {
   let activityPlan = getDbActivityPlan(req.query.user);
   setTimeout(() => {
     res.json(activityPlan);
+    next();
   }, 500);
 });
 
@@ -475,8 +503,39 @@ srv.put('/editActivityPlan', async (req, res, next) => {
   next();
 });
 
+// Teacher Calls
+srv.get('/teacherInfo', (req, res, next) => {
+  let user = getDbUser(req.query.user), data = getDbTeacherIntegralities(user[0].year, user[0].group), 
+    principal = getDbTeacherIsPrincipal(user[0].year), teacherMeetingsAct = getDbTeacherMeetings(user[0].year);
+  if (principal.length > 0) {
+    principal[0].principalTeacher === user[0].username ? principal = true : principal = false;
+  } else {
+    principal = false;
+    teacherMeetingsAct = [];
+  }
+  setTimeout(() => {
+    res.json({integralities: data, principal: principal, meetingActs: teacherMeetingsAct});
+    next();
+  }, 500);
+});
+
+srv.put('/checkIntegralityAct', async (req, res, next) => {
+  let dat = req.body;
+  db.query({
+    type: "update",
+    obj: {
+      table: "integralityAct",
+      field: `"status"`,
+      value: `'${dat.dat}'`,
+      cond: `"username" = '${dat.user}'`,
+    },
+  });
+  res.json({ edited: true, msg: 'Acta de integralidad aprobada' });
+  next();
+});
+
 // Autenticacion
-srv.get('/login', async function (req, res, _next) {
+srv.get('/login', async function (req, res, next) {
   let usrs = getDbUsers();
   let query = req.query, val = false, userIs = false, msg = 'Usuario no encontrado, contacte al administrador';
   let name = '', tok = 0, type = '';
@@ -497,6 +556,7 @@ srv.get('/login', async function (req, res, _next) {
     }
   }
   res.json({ login: val, name: name, type: type, token: tok.toString(), msg: msg });
+  next();
 });
 
 // GET DB functions
@@ -509,6 +569,11 @@ const getDbIntegrality = (user) => db.query({ type: 'get', obj: { sql: `SELECT *
 const getDbMeeting = (user) => db.query({ type: 'get', obj: { sql: `SELECT * FROM meetingAct WHERE "username" = '${user}';` } });
 const getDbActivityPlan= (user) => db.query({ type: 'get', obj: { sql: `SELECT * FROM activityPlan WHERE "username" = '${user}';` } });
 const getDbUserIsGroupleader = (year, group) => db.query({ type: 'get', obj: { sql: `SELECT "groupLeader" FROM "groups" WHERE "year" = ${year} AND "group" = '${group}';` } });
+const getDbUserIsViceGroupleader = (year, group) => db.query({ type: 'get', obj: { sql: `SELECT "viceGroupLeader" FROM "groups" WHERE "year" = ${year} AND "group" = '${group}';` } });
+const getDbTeacherIntegralities = (year, group) => db.query({ type: 'get', obj: { sql: `SELECT * FROM "integralityAct" WHERE "year" = ${year} AND "group" = '${group}';` } });
+const getDbTeacherIsPrincipal = (year) => db.query({ type: 'get', obj: { sql: `SELECT "principalTeacher" FROM "years" WHERE "year" = ${year};` } });
+const getDbTeacherMeetings = (year) => db.query({ type: 'get', obj: { sql: `SELECT * FROM "meetingAct" WHERE "year" = ${year};` } });
+
 
 const initDb = async () => {
   let usersType = ["'admin'", "'student'", "'teacher'", "'p_feu'", "'vp_feu'", "'o_feu'"];
